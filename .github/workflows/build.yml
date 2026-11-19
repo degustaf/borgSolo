@@ -1,0 +1,22 @@
+on: [push, workflow_dispatch]
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: jorelali/setup-elm@v6
+              with:
+                  elm-version: 0.19.1
+            - run: npm install uglify-js -g
+            - run: ./build.sh optimize
+            - uses: montudor/action-zip@v1
+              with:
+                  args: zip -qq -r borg_solo.zip index.html elm.js assets
+            - uses: KikimoraGames/itch-publish@v0.0.3
+              with:
+                  butlerAPIKey: ${{secrets.ITCH_IO_KEY}}
+                  gameData: ./borg_solo.zip
+                  itchUsername: degustaf
+                  itchGameId: borg_solo
+                  buildChannel: html

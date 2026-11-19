@@ -1,0 +1,12 @@
+# elm-package generated files
+elm-stuff/
+# elm-repl generated files
+repl-temp-*
+
+# node generated files
+node_modules/
+package-lock.json
+package.json
+
+elm.js
+*.zip
