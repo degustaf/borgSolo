@@ -181,7 +181,7 @@ applyEdit edit group =
 view : Model -> Html Msg
 view model =
     div []
-        [ h1 [] [ text "Borg Solo" ]
+        [ h1 [] [ text "Scvmbook" ]
         , case model.screen of
             ChooseGroup ->
                 viewChooseGroup model.groups
