@@ -18,5 +18,5 @@ jobs:
                   butlerAPIKey: ${{secrets.ITCH_IO_KEY}}
                   gameData: ./borg_solo.zip
                   itchUsername: degustaf
-                  itchGameId: borg_solo
+                  itchGameId: scvmbook
                   buildChannel: html
