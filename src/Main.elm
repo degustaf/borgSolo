@@ -4,8 +4,8 @@
 module Main exposing (main)
 
 import Browser
-import Html exposing (Html, button, div, form, h1, h2, h3, input, label, li, p, text, textarea, ul)
-import Html.Attributes exposing (disabled, type_, value)
+import Html exposing (Html, aside, button, div, h1, h2, h3, header, input, label, li, main_, p, section, span, text, textarea, ul)
+import Html.Attributes exposing (class, disabled, type_, value)
 import Html.Events exposing (onClick, onInput, onSubmit)
 
 
@@ -58,6 +58,7 @@ type GroupEdit
 type Msg
     = NewGroup Game
     | OpenGroup Int
+    | DeleteGroup Int
     | BackToStart
     | SetNewItem String
     | SubmitItem
@@ -91,6 +92,21 @@ counterName game =
             "Glitches"
 
 
+feedName : Maybe Game -> String
+feedName mg =
+    case mg of
+        Nothing ->
+            "Doomed feed"
+
+        Just game ->
+            case game of
+                MorkBorg ->
+                    "Wretched Feed"
+
+                CyBorg ->
+                    "Netrunner Wall"
+
+
 newGroup : Int -> Game -> Group
 newGroup id game =
     { id = id
@@ -117,6 +133,16 @@ findGroup : Int -> List Group -> Maybe Group
 findGroup id groups =
     List.filter (\g -> g.id == id) groups
         |> List.head
+
+
+getGame : Model -> Maybe Game
+getGame model =
+    case model.screen of
+        ChooseGroup ->
+            Nothing
+
+        ViewGroup id ->
+            findGroup id model.groups |> Maybe.map (\g -> g.game)
 
 
 updateGroup : Int -> (Group -> Group) -> List Group -> List Group
@@ -178,60 +204,114 @@ applyEdit edit group =
             { group | characters = removeAt index group.characters }
 
 
-view : Model -> Html Msg
-view model =
-    div []
-        [ h1 [] [ text "Scvmbook" ]
-        , case model.screen of
-            ChooseGroup ->
-                viewChooseGroup model.groups
-
-            ViewGroup id ->
-                case findGroup id model.groups of
-                    Just group ->
-                        viewGroup model group
-
-                    Nothing ->
-                        viewChooseGroup model.groups
+viewGroupItem : Group -> Html Msg
+viewGroupItem group =
+    li [ class "group-row" ]
+        [ button [ class "open-btn", onClick (OpenGroup group.id) ]
+            [ text <| displayName group ++ " (" ++ gameName group.game ++ ")" ]
+        , button [ class "danger-btn", onClick (DeleteGroup group.id) ]
+            [ text "Delete" ]
         ]
 
 
-viewChooseGroup : List Group -> Html Msg
-viewChooseGroup groups =
-    div []
-        [ h2 [] [ text "Existing groups" ]
-        , viewExistingGroups groups
-        , h2 [] [ text "New group" ]
-        , div []
-            [ button [ onClick (NewGroup MorkBorg) ] [ text "New Mork Borg group" ]
-            , button [ onClick (NewGroup CyBorg) ] [ text "New Cy_Borg group" ]
+viewTopBar : Model -> Html Msg
+viewTopBar model =
+    header [ class "topbar" ]
+        [ div [ class "brand" ]
+            [ span [ class "logo-badge" ]
+                [ text "S" ]
+            , h1 [] [ text "Scvmbook" ]
+            ]
+        , span [ class "topbar-tag" ] [ getGame model |> feedName |> text ]
+        ]
+
+
+viewLeftRail : List Group -> Html Msg
+viewLeftRail groups =
+    aside []
+        [ section [ class "card" ]
+            [ h2 [] [ text "Existing groups" ]
+            , ul [ class "group-list" ]
+                (if List.isEmpty groups then
+                    [ li [ class "group-empty" ] [ text "No groups yet." ] ]
+
+                 else
+                    List.map viewGroupItem groups
+                )
             ]
         ]
 
 
-viewExistingGroups : List Group -> Html Msg
-viewExistingGroups groups =
-    if List.isEmpty groups then
-        p [] [ text "No groups yet." ]
+viewCenterFeed : Html Msg
+viewCenterFeed =
+    section []
+        [ div [ class "card" ]
+            [ h2 [] [ text "New group" ]
+            , div [ class "actions" ]
+                [ button
+                    [ onClick (NewGroup MorkBorg) ]
+                    [ text "New Mork Borg group" ]
+                , button
+                    [ class "btn-secondary"
+                    , onClick (NewGroup CyBorg)
+                    ]
+                    [ text "New Cy_Borg group" ]
+                ]
+            ]
+        ]
 
-    else
-        ul [] (List.map viewGroupItem groups)
+
+viewMetaRow : String -> String -> Html msg
+viewMetaRow label value =
+    div [ class "meta-row" ]
+        [ span [ class "meta-label" ] [ text label ]
+        , span [ class "meta-value" ] [ text value ]
+        ]
 
 
-viewGroupItem : Group -> Html Msg
-viewGroupItem group =
+viewHome : Model -> Html Msg
+viewHome model =
+    main_ [ class "shell shell--double" ]
+        [ viewLeftRail model.groups
+        , viewCenterFeed
+        ]
+
+
+viewItem : Int -> String -> Html Msg
+viewItem index item =
     li []
-        [ button [ onClick (OpenGroup group.id) ]
-            [ text (displayName group ++ " (" ++ gameName group.game ++ ")") ]
+        [ text (item ++ " ")
+        , button [ onClick (Edit (RemoveItem index)) ] [ text "Remove" ]
+        ]
+
+
+viewInventory : String -> List String -> Html Msg
+viewInventory newItem items =
+    div []
+        [ h3 [] [ text "Inventory" ]
+        , if List.isEmpty items then
+            p [] [ text "Nothing yet." ]
+
+          else
+            ul [] (List.indexedMap viewItem items)
+        , div [ onSubmit SubmitItem ]
+            [ input [ type_ "text", value newItem, onInput SetNewItem ] []
+            , button [ type_ "submit" ] [ text "Add item" ]
+            ]
         ]
 
 
 viewGroup : Model -> Group -> Html Msg
 viewGroup model group =
     div []
-        [ button [ onClick BackToStart ] [ text "Back" ]
-        , h2 [] [ text (displayName group) ]
-        , p [] [ text (gameName group.game) ]
+        [ div [ class "active-group-header" ]
+            [ h2 [] [ text (gameName group.game) ]
+            , button
+                [ class "btn-secondary"
+                , onClick BackToStart
+                ]
+                [ text "← All groups" ]
+            ]
         , div []
             [ label []
                 [ text "Party name "
@@ -243,7 +323,6 @@ viewGroup model group =
                 [ text "Silver "
                 , input
                     [ type_ "number"
-                    , Html.Attributes.min "0"
                     , value (String.fromInt group.silver)
                     , onInput (Edit << SetSilver)
                     ]
@@ -282,7 +361,7 @@ viewCharacters newCharacter characters =
 
           else
             ul [] (List.indexedMap viewCharacter characters)
-        , form [ onSubmit SubmitCharacter ]
+        , div [ onSubmit SubmitCharacter ]
             [ input [ type_ "text", value newCharacter, onInput SetNewCharacter ] []
             , button [ type_ "submit" ] [ text "Add character" ]
             ]
@@ -302,27 +381,39 @@ viewCharacter index character =
         ]
 
 
-viewInventory : String -> List String -> Html Msg
-viewInventory newItem items =
-    div []
-        [ h3 [] [ text "Inventory" ]
-        , if List.isEmpty items then
-            p [] [ text "Nothing yet." ]
+themeClass : Model -> String
+themeClass model =
+    case getGame model of
+        Nothing ->
+            "theme-base"
 
-          else
-            ul [] (List.indexedMap viewItem items)
-        , form [ onSubmit SubmitItem ]
-            [ input [ type_ "text", value newItem, onInput SetNewItem ] []
-            , button [ type_ "submit" ] [ text "Add item" ]
-            ]
-        ]
+        Just game ->
+            case game of
+                MorkBorg ->
+                    "theme-mb"
+
+                CyBorg ->
+                    "theme-cb"
 
 
-viewItem : Int -> String -> Html Msg
-viewItem index item =
-    li []
-        [ text (item ++ " ")
-        , button [ onClick (Edit (RemoveItem index)) ] [ text "Remove" ]
+view : Model -> Html Msg
+view model =
+    div [ class <| "app " ++ themeClass model ]
+        [ viewTopBar model
+        , case model.screen of
+            ChooseGroup ->
+                viewHome model
+
+            ViewGroup groupId ->
+                main_ [ class "shell shell--single" ]
+                    [ case findGroup groupId model.groups of
+                        Just group ->
+                            section [ class "card active-group-view" ]
+                                [ viewGroup model group ]
+
+                        Nothing ->
+                            viewHome model
+                    ]
         ]
 
 
@@ -342,6 +433,27 @@ update msg model =
 
         OpenGroup id ->
             ( { model | screen = ViewGroup id, newItem = "", newCharacter = "" }, Cmd.none )
+
+        DeleteGroup id ->
+            let
+                nextScreen =
+                    case model.screen of
+                        ViewGroup activeId ->
+                            if activeId == id then
+                                ChooseGroup
+
+                            else
+                                model.screen
+
+                        ChooseGroup ->
+                            ChooseGroup
+            in
+            ( { model
+                | groups = List.filter (\g -> g.id /= id) model.groups
+                , screen = nextScreen
+              }
+            , Cmd.none
+            )
 
         BackToStart ->
             ( { model | screen = ChooseGroup, newItem = "", newCharacter = "" }, Cmd.none )
