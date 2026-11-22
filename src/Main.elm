@@ -4,9 +4,9 @@
 module Main exposing (main)
 
 import Browser
-import Html exposing (Html, aside, button, div, h1, h2, h3, header, input, label, li, main_, p, section, span, text, textarea, ul)
-import Html.Attributes exposing (class, disabled, type_, value)
-import Html.Events exposing (onClick, onInput, onSubmit)
+import Html exposing (Html, aside, button, div, footer, h1, h2, h3, header, input, label, li, main_, option, p, section, select, span, text, textarea, ul)
+import Html.Attributes exposing (class, disabled, selected, type_, value)
+import Html.Events exposing (onClick, onInput)
 
 
 type Game
@@ -14,8 +14,46 @@ type Game
     | CyBorg
 
 
+type alias MbStats =
+    { agility : Int
+    , presence : Int
+    , strength : Int
+    , toughness : Int
+    }
+
+
+type alias CbStats =
+    { agility : Int
+    , knowledge : Int
+    , presence : Int
+    , strength : Int
+    , toughness : Int
+    }
+
+
+type CharacterStats
+    = MbCharacterStats MbStats
+    | CbCharacterStats CbStats
+
+
+type MbStatField
+    = MbAgility
+    | MbPresence
+    | MbStrength
+    | MbToughness
+
+
+type CbStatField
+    = CbAgility
+    | CbKnowledge
+    | CbPresence
+    | CbStrength
+    | CbToughness
+
+
 type alias Character =
     { name : String
+    , stats : CharacterStats
     }
 
 
@@ -53,6 +91,10 @@ type GroupEdit
     | AdjustMisery Int
     | RenameCharacter Int String
     | RemoveCharacter Int
+    | SetMbStat Int MbStatField Int
+    | SetCbStat Int CbStatField Int
+    | AdjustMbStat Int MbStatField Int
+    | AdjustCbStat Int CbStatField Int
 
 
 type Msg
@@ -89,7 +131,7 @@ counterName game =
             "Miseries"
 
         CyBorg ->
-            "Glitches"
+            "Miserable Headlines"
 
 
 feedName : Maybe Game -> String
@@ -105,6 +147,27 @@ feedName mg =
 
                 CyBorg ->
                     "Netrunner Wall"
+
+
+defaultStats : Game -> CharacterStats
+defaultStats game =
+    case game of
+        MorkBorg ->
+            MbCharacterStats
+                { agility = 0
+                , presence = 0
+                , strength = 0
+                , toughness = 0
+                }
+
+        CyBorg ->
+            CbCharacterStats
+                { agility = 0
+                , knowledge = 0
+                , presence = 0
+                , strength = 0
+                , toughness = 0
+                }
 
 
 newGroup : Int -> Game -> Group
@@ -176,6 +239,84 @@ updateAt index f =
         )
 
 
+adjustMbStatRecord : MbStatField -> Int -> MbStats -> MbStats
+adjustMbStatRecord field delta s =
+    case field of
+        MbAgility ->
+            { s | agility = s.agility + delta }
+
+        MbPresence ->
+            { s | presence = s.presence + delta }
+
+        MbStrength ->
+            { s | strength = s.strength + delta }
+
+        MbToughness ->
+            { s | toughness = s.toughness + delta }
+
+
+adjustCbStatRecord : CbStatField -> Int -> CbStats -> CbStats
+adjustCbStatRecord field delta s =
+    case field of
+        CbAgility ->
+            { s | agility = s.agility + delta }
+
+        CbKnowledge ->
+            { s | knowledge = s.knowledge + delta }
+
+        CbPresence ->
+            { s | presence = s.presence + delta }
+
+        CbStrength ->
+            { s | strength = s.strength + delta }
+
+        CbToughness ->
+            { s | toughness = s.toughness + delta }
+
+
+setMbStatRecord : MbStatField -> Int -> MbStats -> MbStats
+setMbStatRecord field val s =
+    let
+        clamped =
+            clamp -3 3 val
+    in
+    case field of
+        MbAgility ->
+            { s | agility = clamped }
+
+        MbPresence ->
+            { s | presence = clamped }
+
+        MbStrength ->
+            { s | strength = clamped }
+
+        MbToughness ->
+            { s | toughness = clamped }
+
+
+setCbStatRecord : CbStatField -> Int -> CbStats -> CbStats
+setCbStatRecord field val s =
+    let
+        clamped =
+            clamp -3 3 val
+    in
+    case field of
+        CbAgility ->
+            { s | agility = clamped }
+
+        CbKnowledge ->
+            { s | knowledge = clamped }
+
+        CbPresence ->
+            { s | presence = clamped }
+
+        CbStrength ->
+            { s | strength = clamped }
+
+        CbToughness ->
+            { s | toughness = clamped }
+
+
 applyEdit : GroupEdit -> Group -> Group
 applyEdit edit group =
     case edit of
@@ -202,6 +343,66 @@ applyEdit edit group =
 
         RemoveCharacter index ->
             { group | characters = removeAt index group.characters }
+
+        SetMbStat charIndex field val ->
+            { group
+                | characters =
+                    updateAt charIndex
+                        (\c ->
+                            case c.stats of
+                                MbCharacterStats mb ->
+                                    { c | stats = MbCharacterStats (setMbStatRecord field val mb) }
+
+                                other ->
+                                    { c | stats = other }
+                        )
+                        group.characters
+            }
+
+        SetCbStat charIndex field val ->
+            { group
+                | characters =
+                    updateAt charIndex
+                        (\c ->
+                            case c.stats of
+                                CbCharacterStats cb ->
+                                    { c | stats = CbCharacterStats (setCbStatRecord field val cb) }
+
+                                other ->
+                                    { c | stats = other }
+                        )
+                        group.characters
+            }
+
+        AdjustMbStat charIndex field delta ->
+            { group
+                | characters =
+                    updateAt charIndex
+                        (\c ->
+                            case c.stats of
+                                MbCharacterStats mb ->
+                                    { c | stats = MbCharacterStats (adjustMbStatRecord field delta mb) }
+
+                                other ->
+                                    { c | stats = other }
+                        )
+                        group.characters
+            }
+
+        AdjustCbStat charIndex field delta ->
+            { group
+                | characters =
+                    updateAt charIndex
+                        (\c ->
+                            case c.stats of
+                                CbCharacterStats cb ->
+                                    { c | stats = CbCharacterStats (adjustCbStatRecord field delta cb) }
+
+                                other ->
+                                    { c | stats = other }
+                        )
+                        group.characters
+            }
 
 
 viewGroupItem : Group -> Html Msg
@@ -294,9 +495,9 @@ viewInventory newItem items =
 
           else
             ul [] (List.indexedMap viewItem items)
-        , div [ onSubmit SubmitItem ]
+        , div []
             [ input [ type_ "text", value newItem, onInput SetNewItem ] []
-            , button [ type_ "submit" ] [ text "Add item" ]
+            , button [ onClick SubmitItem ] [ text "Add item" ]
             ]
         ]
 
@@ -361,23 +562,77 @@ viewCharacters newCharacter characters =
 
           else
             ul [] (List.indexedMap viewCharacter characters)
-        , div [ onSubmit SubmitCharacter ]
+        , div []
             [ input [ type_ "text", value newCharacter, onInput SetNewCharacter ] []
-            , button [ type_ "submit" ] [ text "Add character" ]
+            , button [ onClick SubmitCharacter ] [ text "Add character" ]
             ]
         ]
+
+
+statOptions : Int -> List (Html msg)
+statOptions currentVal =
+    List.range -3 3
+        |> List.map
+            (\n ->
+                option
+                    [ value (String.fromInt n)
+                    , selected (n == currentVal)
+                    ]
+                    [ text (String.fromInt n) ]
+            )
+
+
+viewStatSelect : String -> Int -> (Int -> Msg) -> Html Msg
+viewStatSelect statLabel currentVal toMsg =
+    label [ class "stat-row" ]
+        [ span [ class "stat-label" ] [ text statLabel ]
+        , select
+            [ class "stat-select"
+            , onInput
+                (\s ->
+                    String.toInt s
+                        |> Maybe.withDefault 0
+                        |> toMsg
+                )
+            ]
+            (statOptions currentVal)
+        ]
+
+
+viewStats : Int -> CharacterStats -> Html Msg
+viewStats charIndex stats =
+    div [ class "character-stats" ]
+        (case stats of
+            MbCharacterStats mb ->
+                [ viewStatSelect "Agility" mb.agility (\n -> Edit (SetMbStat charIndex MbAgility n))
+                , viewStatSelect "Presence" mb.presence (\n -> Edit (SetMbStat charIndex MbPresence n))
+                , viewStatSelect "Strength" mb.strength (\n -> Edit (SetMbStat charIndex MbStrength n))
+                , viewStatSelect "Toughness" mb.toughness (\n -> Edit (SetMbStat charIndex MbToughness n))
+                ]
+
+            CbCharacterStats cb ->
+                [ viewStatSelect "Agility" cb.agility (\n -> Edit (SetCbStat charIndex CbAgility n))
+                , viewStatSelect "Knowledge" cb.knowledge (\n -> Edit (SetCbStat charIndex CbKnowledge n))
+                , viewStatSelect "Presence" cb.presence (\n -> Edit (SetCbStat charIndex CbPresence n))
+                , viewStatSelect "Strength" cb.strength (\n -> Edit (SetCbStat charIndex CbStrength n))
+                , viewStatSelect "Toughness" cb.toughness (\n -> Edit (SetCbStat charIndex CbToughness n))
+                ]
+        )
 
 
 viewCharacter : Int -> Character -> Html Msg
 viewCharacter index character =
     li []
-        [ input
-            [ type_ "text"
-            , value character.name
-            , onInput (Edit << RenameCharacter index)
+        [ div []
+            [ input
+                [ type_ "text"
+                , value character.name
+                , onInput (Edit << RenameCharacter index)
+                ]
+                []
+            , button [ onClick (Edit (RemoveCharacter index)) ] [ text "Remove" ]
             ]
-            []
-        , button [ onClick (Edit (RemoveCharacter index)) ] [ text "Remove" ]
+        , viewStats index character.stats
         ]
 
 
@@ -394,6 +649,22 @@ themeClass model =
 
                 CyBorg ->
                     "theme-cb"
+
+
+viewFooter : Html Msg
+viewFooter =
+    footer [ class "footer" ]
+        [ div [ class "footer-inner" ]
+            [ p [ class "footer-license" ]
+                [ text "Scvmbook is an independent production by Derek Gustafson and is not affiliated with Ockult Örtmästare Games or Stockholm Kartell. It is published under the MÖRK BORG and CY_BORG Third Party Licenses." ]
+            , p [ class "footer-copy" ]
+                [ text "Scvmbook IS ©2026 Derek Gustafson. " ]
+            , p [ class "footer-copy" ]
+                [ text "MÖRK BORG is copyright Ockult Örtmästare Games and Stockholm Kartell." ]
+            , p [ class "footer-copy" ]
+                [ text "CY_BORG IS ©2022 STOCKHOLM KARTELL. " ]
+            ]
+        ]
 
 
 view : Model -> Html Msg
@@ -414,6 +685,7 @@ view model =
                         Nothing ->
                             viewHome model
                     ]
+        , viewFooter
         ]
 
 
@@ -499,15 +771,26 @@ update msg model =
                         ( model, Cmd.none )
 
                     else
-                        ( { model
-                            | groups =
-                                updateGroup id
-                                    (\g -> { g | characters = g.characters ++ [ { name = name } ] })
-                                    model.groups
-                            , newCharacter = ""
-                          }
-                        , Cmd.none
-                        )
+                        case findGroup id model.groups of
+                            Just group ->
+                                ( { model
+                                    | groups =
+                                        updateGroup id
+                                            (\g ->
+                                                { g
+                                                    | characters =
+                                                        { name = name, stats = defaultStats group.game }
+                                                            :: g.characters
+                                                }
+                                            )
+                                            model.groups
+                                    , newCharacter = ""
+                                  }
+                                , Cmd.none
+                                )
+
+                            Nothing ->
+                                ( model, Cmd.none )
 
                 ChooseGroup ->
                     ( model, Cmd.none )
