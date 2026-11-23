@@ -62,6 +62,16 @@ counterName game =
             "Miserable Headlines"
 
 
+currencyName : Game -> String
+currencyName game =
+    case game of
+        MorkBorg ->
+            "Silver"
+
+        CyBorg ->
+            "Credits"
+
+
 feedName : Maybe Game -> String
 feedName mg =
     case mg of
@@ -146,7 +156,7 @@ type alias Group =
     { id : Int
     , game : Game
     , name : String
-    , silver : Int
+    , currency : Int
     , characters : List Character
     , inventory : List String
     , notes : String
@@ -158,7 +168,7 @@ type alias Group =
 
 type GroupEdit
     = SetName String
-    | SetSilver String
+    | SetCurrency String
     | SetNotes String
     | RemoveItem Int
     | AdjustMisery Int
@@ -191,7 +201,7 @@ newGroup id game =
     { id = id
     , game = game
     , name = "Party " ++ String.fromInt id
-    , silver = 0
+    , currency = 0
     , characters = []
     , inventory = []
     , notes = ""
@@ -305,8 +315,8 @@ applyEdit edit group =
         SetName name ->
             { group | name = name }
 
-        SetSilver s ->
-            { group | silver = max 0 (Maybe.withDefault 0 (String.toInt s)) }
+        SetCurrency s ->
+            { group | currency = max 0 (Maybe.withDefault 0 (String.toInt s)) }
 
         SetNotes notes ->
             { group | notes = notes }
@@ -552,11 +562,11 @@ viewGroupBody f group =
         ]
     , div []
         [ label []
-            [ text "Silver "
+            [ text <| currencyName group.game
             , input
                 [ type_ "number"
-                , value (String.fromInt group.silver)
-                , onInput (f << SetSilver)
+                , value (String.fromInt group.currency)
+                , onInput (f << SetCurrency)
                 ]
                 []
             ]
