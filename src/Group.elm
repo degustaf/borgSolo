@@ -3,7 +3,7 @@
 
 module Group exposing (Game, Group, GroupEdit, applyEdit, displayName, feedName, findGroup, gameName, newGameButtons, newGroup, themeClass, updateGroup, viewGroupBody)
 
-import Html exposing (Html, button, div, h3, input, label, li, ol, option, p, select, span, text, textarea, ul)
+import Html exposing (Html, button, div, h3, input, label, li, ol, option, select, span, text, textarea, ul)
 import Html.Attributes exposing (class, disabled, selected, title, type_, value)
 import Html.Events exposing (onClick, onInput)
 import List.Extra exposing (removeAt, updateAt)
@@ -162,6 +162,9 @@ type alias Character =
     , maxHp : Int
     , omens : Int
     , stats : CharacterStats
+    , inventory : List String
+    , newItem : String
+    , notes : String
     , isOpen : Bool
     }
 
@@ -198,6 +201,10 @@ type GroupEdit
     | SetHp Int Int
     | SetMaxHp Int String
     | SetOmens Int Int
+    | SetCharacterNewItem Int String
+    | SubmitCharacterItem Int
+    | RemoveCharacterItem Int Int
+    | SetCharacterNotes Int String
 
 
 updateGroup : Int -> (Group -> Group) -> List Group -> List Group
@@ -417,6 +424,9 @@ applyEdit edit group =
                                  , maxHp = 1
                                  , omens = 0
                                  , stats = defaultStats group.game
+                                 , inventory = []
+                                 , newItem = ""
+                                 , notes = ""
                                  , isOpen = False
                                  }
                                ]
@@ -461,6 +471,51 @@ applyEdit edit group =
                 | characters =
                     updateAt charIndex
                         (\c -> { c | omens = omens })
+                        group.characters
+            }
+
+        SetCharacterNewItem charIndex item ->
+            { group
+                | characters =
+                    updateAt charIndex
+                        (\c -> { c | newItem = item })
+                        group.characters
+            }
+
+        SubmitCharacterItem charIndex ->
+            { group
+                | characters =
+                    updateAt charIndex
+                        (\c ->
+                            let
+                                item =
+                                    String.trim c.newItem
+                            in
+                            if String.isEmpty item then
+                                c
+
+                            else
+                                { c
+                                    | inventory = c.inventory ++ [ item ]
+                                    , newItem = ""
+                                }
+                        )
+                        group.characters
+            }
+
+        RemoveCharacterItem charIndex itemIndex ->
+            { group
+                | characters =
+                    updateAt charIndex
+                        (\c -> { c | inventory = removeAt itemIndex c.inventory })
+                        group.characters
+            }
+
+        SetCharacterNotes charIndex notes ->
+            { group
+                | characters =
+                    updateAt charIndex
+                        (\c -> { c | notes = notes })
                         group.characters
             }
 
@@ -510,11 +565,7 @@ viewCharacters : (GroupEdit -> msg) -> Game -> String -> List Character -> Html 
 viewCharacters f game newCharacter characters =
     div []
         [ h3 [] [ text "Characters" ]
-        , if List.isEmpty characters then
-            p [] [ text "No characters yet." ]
-
-          else
-            ol [] <| List.indexedMap (viewCharacter f game) characters
+        , ol [] <| List.indexedMap (viewCharacter f game) characters
         , div []
             [ input [ type_ "text", value newCharacter, onInput (f << SetNewCharacter) ] []
             , button [ onClick (f SubmitCharacter) ] [ text "Add character" ]
@@ -525,12 +576,8 @@ viewCharacters f game newCharacter characters =
 viewInventory : (GroupEdit -> msg) -> String -> List String -> Html msg
 viewInventory f newItem items =
     div []
-        [ h3 [] [ text "Inventory" ]
-        , if List.isEmpty items then
-            p [] [ text "Nothing yet." ]
-
-          else
-            ul [] (List.indexedMap (viewItem f) items)
+        [ h3 [] [ text "Party Inventory" ]
+        , ul [] (List.indexedMap (viewItem (f << RemoveItem)) items)
         , div []
             [ input [ type_ "text", value newItem, onInput (f << SetNewItem) ] []
             , button [ onClick <| f SubmitItem ] [ text "Add item" ]
@@ -606,6 +653,23 @@ viewOmenSelect statLabel currentVal toMsg =
         ]
 
 
+viewCharacterInventory : (GroupEdit -> msg) -> Int -> Character -> Html msg
+viewCharacterInventory f charIndex character =
+    div [ class "character-inventory" ]
+        [ h3 [] [ text "Inventory" ]
+        , ul [] (List.indexedMap (viewItem (f << RemoveCharacterItem charIndex)) character.inventory)
+        , div []
+            [ input
+                [ type_ "text"
+                , value character.newItem
+                , onInput (f << SetCharacterNewItem charIndex)
+                ]
+                []
+            , button [ onClick <| f <| SubmitCharacterItem charIndex ] [ text "Add item" ]
+            ]
+        ]
+
+
 viewCharacter : (GroupEdit -> msg) -> Game -> Int -> Character -> Html msg
 viewCharacter f game index character =
     li []
@@ -621,7 +685,12 @@ viewCharacter f game index character =
                         , viewHpField character.hp character.maxHp (f << SetHp index) (f << SetMaxHp index)
                         ]
                     , viewStats f index character.stats
-                    , button [ onClick <| f <| RemoveCharacter index ] [ text "Remove" ]
+                    , viewCharacterInventory f index character
+                    , div [ class "character-notes" ]
+                        [ h3 [] [ text "Notes" ]
+                        , textarea [ value character.notes, onInput (f << SetCharacterNotes index) ] []
+                        ]
+                    , button [ class "character-remove", onClick <| f <| RemoveCharacter index ] [ text "Remove" ]
                     ]
 
                 else
@@ -630,11 +699,11 @@ viewCharacter f game index character =
         )
 
 
-viewItem : (GroupEdit -> msg) -> Int -> String -> Html msg
+viewItem : (Int -> msg) -> Int -> String -> Html msg
 viewItem f index item =
     li []
         [ text (item ++ " ")
-        , button [ onClick <| f <| RemoveItem index ] [ text "Remove" ]
+        , button [ onClick <| f index ] [ text "Remove" ]
         ]
 
 
@@ -661,7 +730,7 @@ viewGroupBody f group =
     , viewCharacters f group.game group.newCharacter group.characters
     , viewInventory f group.newItem group.inventory
     , div []
-        [ h3 [] [ text "Notes" ]
+        [ h3 [] [ text "Party Notes" ]
         , textarea [ value group.notes, onInput (f << SetNotes) ] []
         ]
     ]

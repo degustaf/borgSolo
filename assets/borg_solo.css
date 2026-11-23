@@ -397,6 +397,11 @@ button:focus-visible {
   margin-top: 10px;
 }
 
+.character-inventory,
+.character-remove {
+  margin-top: 10px;
+}
+
 .stat-row {
   display: flex;
   align-items: center;
