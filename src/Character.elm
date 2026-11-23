@@ -1,7 +1,7 @@
 -- Copyright (c) 2026 Derek Gustafson.
 
 
-module Character exposing (Character, CharacterEdit, Game, applyEdit, counterName, currencyName, feedName, gameName, newCharacter, newGameButtons, omenName, themeClass, toggleOpen, viewCharacter)
+module Character exposing (Character, CharacterEdit, Game, applyEdit, counterName, feedName, gameName, newCharacter, newGameButtons, themeClass, toggleOpen, viewCharacter)
 
 import Html exposing (Html, button, div, h3, input, label, li, option, select, span, text, textarea, ul)
 import Html.Attributes exposing (class, selected, title, type_, value)
@@ -12,16 +12,6 @@ import List.Extra exposing (removeAt)
 type Game
     = MorkBorg
     | CyBorg
-
-
-isMorkBorg : Game -> Bool
-isMorkBorg game =
-    case game of
-        MorkBorg ->
-            True
-
-        CyBorg ->
-            False
 
 
 themeClass : Maybe Game -> String
@@ -145,7 +135,8 @@ type CbStatField
 
 
 type alias Character =
-    { name : String
+    { game : Game
+    , name : String
     , class : String
     , hp : Int
     , maxHp : Int
@@ -196,7 +187,8 @@ defaultStats game =
 
 newCharacter : Game -> String -> Character
 newCharacter game name =
-    { name = name
+    { game = game
+    , name = name
     , class = "Classless"
     , hp = 1
     , maxHp = 1
@@ -448,8 +440,6 @@ viewCharacter :
     { onToggle : msg
     , onRemove : msg
     , onEdit : CharacterEdit -> msg
-    , currencyLabel : String
-    , omenLabel : String
     , character : Character
     }
     -> Html msg
@@ -467,12 +457,12 @@ viewCharacter config =
             :: (if character.isOpen then
                     [ div [ class "character-stats" ]
                         [ input [ type_ "text", value character.class, onInput (config.onEdit << SetClass) ] []
-                        , viewOmenSelect config.omenLabel character.omens (config.onEdit << SetOmens)
+                        , viewOmenSelect (omenName config.character.game) character.omens (config.onEdit << SetOmens)
                         , viewHpField character.hp character.maxHp (config.onEdit << SetHp) (config.onEdit << SetMaxHp)
                         ]
                     , div [ class "character-currency" ]
-                        [ label [ title config.currencyLabel ]
-                            [ span [ class "stat-label" ] [ text config.currencyLabel ]
+                        [ label [ title <| currencyName config.character.game ]
+                            [ span [ class "stat-label" ] [ text <| currencyName config.character.game ]
                             , input
                                 [ type_ "number"
                                 , Html.Attributes.min "0"

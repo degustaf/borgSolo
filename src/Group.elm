@@ -3,7 +3,7 @@
 
 module Group exposing (Group, GroupEdit, applyEdit, displayName, findGroup, newGroup, updateGroup, viewGroupBody)
 
-import Character exposing (Character, CharacterEdit, Game, counterName, currencyName, newCharacter, omenName, toggleOpen, viewCharacter)
+import Character exposing (Character, CharacterEdit, Game, counterName, newCharacter, toggleOpen, viewCharacter)
 import Html exposing (Html, button, div, h3, input, label, li, ol, text, textarea, ul)
 import Html.Attributes exposing (disabled, type_, value)
 import Html.Events exposing (onClick, onInput)
@@ -158,23 +158,21 @@ viewMisery f group =
         ]
 
 
-viewCharacterRow : (GroupEdit -> msg) -> Game -> Int -> Character -> Html msg
-viewCharacterRow f game index character =
+viewCharacterRow : (GroupEdit -> msg) -> Int -> Character -> Html msg
+viewCharacterRow f index character =
     viewCharacter
         { onToggle = f (ToggleCharacter index)
         , onRemove = f (RemoveCharacter index)
         , onEdit = \charEdit -> f (EditCharacter index charEdit)
-        , currencyLabel = currencyName game
-        , omenLabel = omenName game
         , character = character
         }
 
 
-viewCharacters : (GroupEdit -> msg) -> Game -> String -> List Character -> Html msg
-viewCharacters f game newCharacter characters =
+viewCharacters : (GroupEdit -> msg) -> String -> List Character -> Html msg
+viewCharacters f newCharacter characters =
     div []
         [ h3 [] [ text "Characters" ]
-        , ol [] <| List.indexedMap (viewCharacterRow f game) characters
+        , ol [] <| List.indexedMap (viewCharacterRow f) characters
         , div []
             [ input [ type_ "text", value newCharacter, onInput (f << SetNewCharacter) ] []
             , button [ onClick (f SubmitCharacter) ] [ text "Add character" ]
@@ -211,7 +209,7 @@ viewGroupBody f group =
             ]
         ]
     , viewMisery f group
-    , viewCharacters f group.game group.newCharacter group.characters
+    , viewCharacters f group.newCharacter group.characters
     , viewInventory f group.newItem group.inventory
     , div []
         [ h3 [] [ text "Pary Notes" ]
