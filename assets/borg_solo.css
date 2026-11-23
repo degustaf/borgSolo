@@ -443,6 +443,10 @@ button:focus-visible {
   border-bottom: 1px solid var(--sb-border);
 }
 
+textarea {
+  max-width: 100%;
+}
+
 input[type="text"],
 input[type="number"],
 textarea {
