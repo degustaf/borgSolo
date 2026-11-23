@@ -376,6 +376,37 @@ button:focus-visible {
   font-weight: 700;
 }
 
+.hp-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hp-divider {
+  color: var(--sb-text-muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.hp-max-input {
+  width: 56px;
+  padding: 4px 6px;
+  background-color: var(--sb-surface);
+  color: var(--sb-text);
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.hp-max-input:focus {
+  outline: 2px solid var(--sb-accent-alt);
+  outline-offset: 1px;
+  border-color: var(--sb-accent-alt);
+}
+
 .character-stats {
   display: flex;
   gap: 8px;

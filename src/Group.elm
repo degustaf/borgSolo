@@ -158,6 +158,8 @@ type CbStatField
 type alias Character =
     { name : String
     , class : String
+    , hp : Int
+    , maxHp : Int
     , omens : Int
     , stats : CharacterStats
     , isOpen : Bool
@@ -193,6 +195,8 @@ type GroupEdit
     | SetNewCharacter String
     | SubmitCharacter
     | SetClass Int String
+    | SetHp Int Int
+    | SetMaxHp Int String
     | SetOmens Int Int
 
 
@@ -407,7 +411,15 @@ applyEdit edit group =
                 { group
                     | characters =
                         group.characters
-                            ++ [ { name = name, class = "Classless", omens = 0, stats = defaultStats group.game, isOpen = False } ]
+                            ++ [ { name = name
+                                 , class = "Classless"
+                                 , hp = 1
+                                 , maxHp = 1
+                                 , omens = 0
+                                 , stats = defaultStats group.game
+                                 , isOpen = False
+                                 }
+                               ]
                     , newCharacter = ""
                 }
 
@@ -416,6 +428,31 @@ applyEdit edit group =
                 | characters =
                     updateAt charIndex
                         (\c -> { c | class = class })
+                        group.characters
+            }
+
+        SetHp charIndex hp ->
+            { group
+                | characters =
+                    updateAt charIndex
+                        (\c -> { c | hp = clamp 0 c.maxHp hp })
+                        group.characters
+            }
+
+        SetMaxHp charIndex maxHpStr ->
+            let
+                newMax =
+                    max 0 (Maybe.withDefault 0 (String.toInt maxHpStr))
+            in
+            { group
+                | characters =
+                    updateAt charIndex
+                        (\c ->
+                            { c
+                                | maxHp = newMax
+                                , hp = clamp 0 newMax c.hp
+                            }
+                        )
                         group.characters
             }
 
@@ -438,6 +475,34 @@ viewMisery f group =
             , disabled (group.misery >= maxMisery)
             ]
             [ text "+" ]
+        ]
+
+
+viewHpField : Int -> Int -> (Int -> msg) -> (String -> msg) -> Html msg
+viewHpField currentHp maxHp onHpChange onMaxHpChange =
+    label [ class "stat-row hp-row", title "HP / Max HP" ]
+        [ span [ class "stat-label" ] [ text "HP" ]
+        , div [ class "hp-controls" ]
+            [ select
+                [ class "stat-select hp-select"
+                , onInput
+                    (\s ->
+                        String.toInt s
+                            |> Maybe.withDefault 0
+                            |> onHpChange
+                    )
+                ]
+                (statOptions 0 (max 0 maxHp) currentHp)
+            , span [ class "hp-divider" ] [ text "/" ]
+            , input
+                [ type_ "number"
+                , class "hp-max-input"
+                , Html.Attributes.min "0"
+                , value (String.fromInt maxHp)
+                , onInput onMaxHpChange
+                ]
+                []
+            ]
         ]
 
 
@@ -553,6 +618,7 @@ viewCharacter f game index character =
                     [ div [ class "character-stats" ]
                         [ input [ type_ "text", value character.class, onInput (f << SetClass index) ] []
                         , viewOmenSelect (omenName game) character.omens (f << SetOmens index)
+                        , viewHpField character.hp character.maxHp (f << SetHp index) (f << SetMaxHp index)
                         ]
                     , viewStats f index character.stats
                     , button [ onClick <| f <| RemoveCharacter index ] [ text "Remove" ]
