@@ -69,7 +69,7 @@ currencyName game =
             "Silver"
 
         CyBorg ->
-            "Credits"
+            "¤"
 
 
 omenName : Game -> String
@@ -328,6 +328,29 @@ intOptions lb ub currentVal =
             )
 
 
+statOptions : Int -> Int -> Int -> List (Html msg)
+statOptions lb ub currentVal =
+    List.range lb ub
+        |> List.map
+            (\n ->
+                let
+                    nStr =
+                        (if n >= 0 then
+                            "+"
+
+                         else
+                            ""
+                        )
+                            ++ String.fromInt n
+                in
+                option
+                    [ value nStr
+                    , selected (n == currentVal)
+                    ]
+                    [ text nStr ]
+            )
+
+
 viewStatSelect : String -> Int -> (Int -> msg) -> Html msg
 viewStatSelect statLabel currentVal toMsg =
     label [ class "stat-row", title statLabel ]
@@ -341,7 +364,7 @@ viewStatSelect statLabel currentVal toMsg =
                         |> toMsg
                 )
             ]
-            (intOptions -3 6 currentVal)
+            (statOptions -3 6 currentVal)
         ]
 
 
