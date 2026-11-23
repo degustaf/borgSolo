@@ -4,7 +4,7 @@
 module Main exposing (main)
 
 import Browser
-import Group exposing (Game, Group, GroupEdit(..), applyEdit, displayName, feedName, findGroup, gameName, newGameButtons, newGroup, themeClass, updateGroup, viewGroupBody)
+import Group exposing (Game, Group, GroupEdit, applyEdit, displayName, feedName, findGroup, gameName, newGameButtons, newGroup, themeClass, updateGroup, viewGroupBody)
 import Html exposing (Html, aside, button, div, footer, h1, h2, header, label, li, main_, p, section, span, text, ul)
 import Html.Attributes exposing (class, value)
 import Html.Events exposing (onClick)

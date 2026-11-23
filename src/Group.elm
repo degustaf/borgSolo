@@ -1,7 +1,7 @@
 -- Copyright (c) 2026 Derek Gustafson.
 
 
-module Group exposing (..)
+module Group exposing (Game, Group, GroupEdit, applyEdit, displayName, feedName, findGroup, gameName, newGameButtons, newGroup, themeClass, updateGroup, viewGroupBody)
 
 import Html exposing (Html, button, div, h3, input, label, li, ol, option, p, select, span, text, textarea, ul)
 import Html.Attributes exposing (class, disabled, selected, title, type_, value)
@@ -70,6 +70,16 @@ currencyName game =
 
         CyBorg ->
             "Credits"
+
+
+omenName : Game -> String
+omenName game =
+    case game of
+        MorkBorg ->
+            "Omens"
+
+        CyBorg ->
+            "Glitches"
 
 
 feedName : Maybe Game -> String
@@ -147,6 +157,8 @@ type CbStatField
 
 type alias Character =
     { name : String
+    , class : String
+    , omens : Int
     , stats : CharacterStats
     , isOpen : Bool
     }
@@ -176,12 +188,12 @@ type GroupEdit
     | RemoveCharacter Int
     | SetMbStat Int MbStatField Int
     | SetCbStat Int CbStatField Int
-    | AdjustMbStat Int MbStatField Int
-    | AdjustCbStat Int CbStatField Int
     | SetNewItem String
     | SubmitItem
     | SetNewCharacter String
     | SubmitCharacter
+    | SetClass Int String
+    | SetOmens Int Int
 
 
 updateGroup : Int -> (Group -> Group) -> List Group -> List Group
@@ -366,36 +378,6 @@ applyEdit edit group =
                         group.characters
             }
 
-        AdjustMbStat charIndex field delta ->
-            { group
-                | characters =
-                    updateAt charIndex
-                        (\c ->
-                            case c.stats of
-                                MbCharacterStats mb ->
-                                    { c | stats = MbCharacterStats (adjustMbStatRecord field delta mb) }
-
-                                other ->
-                                    { c | stats = other }
-                        )
-                        group.characters
-            }
-
-        AdjustCbStat charIndex field delta ->
-            { group
-                | characters =
-                    updateAt charIndex
-                        (\c ->
-                            case c.stats of
-                                CbCharacterStats cb ->
-                                    { c | stats = CbCharacterStats (adjustCbStatRecord field delta cb) }
-
-                                other ->
-                                    { c | stats = other }
-                        )
-                        group.characters
-            }
-
         SetNewItem item ->
             { group | newItem = item }
 
@@ -425,8 +407,25 @@ applyEdit edit group =
                 { group
                     | characters =
                         group.characters
-                            ++ [ { name = name, stats = defaultStats group.game, isOpen = False } ]
+                            ++ [ { name = name, class = "Classless", omens = 0, stats = defaultStats group.game, isOpen = False } ]
+                    , newCharacter = ""
                 }
+
+        SetClass charIndex class ->
+            { group
+                | characters =
+                    updateAt charIndex
+                        (\c -> { c | class = class })
+                        group.characters
+            }
+
+        SetOmens charIndex omens ->
+            { group
+                | characters =
+                    updateAt charIndex
+                        (\c -> { c | omens = omens })
+                        group.characters
+            }
 
 
 viewMisery : (GroupEdit -> msg) -> Group -> Html msg
@@ -442,15 +441,15 @@ viewMisery f group =
         ]
 
 
-viewCharacters : (GroupEdit -> msg) -> String -> List Character -> Html msg
-viewCharacters f newCharacter characters =
+viewCharacters : (GroupEdit -> msg) -> Game -> String -> List Character -> Html msg
+viewCharacters f game newCharacter characters =
     div []
         [ h3 [] [ text "Characters" ]
         , if List.isEmpty characters then
             p [] [ text "No characters yet." ]
 
           else
-            ol [] <| List.indexedMap (viewCharacter f) characters
+            ol [] <| List.indexedMap (viewCharacter f game) characters
         , div []
             [ input [ type_ "text", value newCharacter, onInput (f << SetNewCharacter) ] []
             , button [ onClick (f SubmitCharacter) ] [ text "Add character" ]
@@ -474,9 +473,9 @@ viewInventory f newItem items =
         ]
 
 
-statOptions : Int -> List (Html msg)
-statOptions currentVal =
-    List.range -3 6
+statOptions : Int -> Int -> Int -> List (Html msg)
+statOptions lb ub currentVal =
+    List.range lb ub
         |> List.map
             (\n ->
                 option
@@ -500,7 +499,7 @@ viewStatSelect statLabel currentVal toMsg =
                         |> toMsg
                 )
             ]
-            (statOptions currentVal)
+            (statOptions -3 6 currentVal)
         ]
 
 
@@ -525,8 +524,25 @@ viewStats f charIndex stats =
         )
 
 
-viewCharacter : (GroupEdit -> msg) -> Int -> Character -> Html msg
-viewCharacter f index character =
+viewOmenSelect : String -> Int -> (Int -> msg) -> Html msg
+viewOmenSelect statLabel currentVal toMsg =
+    label [ class "stat-row", title statLabel ]
+        [ span [ class "stat-label" ] [ text statLabel ]
+        , select
+            [ class "stat-select"
+            , onInput
+                (\s ->
+                    String.toInt s
+                        |> Maybe.withDefault 0
+                        |> toMsg
+                )
+            ]
+            (statOptions 0 10 currentVal)
+        ]
+
+
+viewCharacter : (GroupEdit -> msg) -> Game -> Int -> Character -> Html msg
+viewCharacter f game index character =
     li []
         (button
             [ class "btn-secondary"
@@ -534,7 +550,11 @@ viewCharacter f index character =
             ]
             [ text character.name ]
             :: (if character.isOpen then
-                    [ viewStats f index character.stats
+                    [ div [ class "character-stats" ]
+                        [ input [ type_ "text", value character.class, onInput (f << SetClass index) ] []
+                        , viewOmenSelect (omenName game) character.omens (f << SetOmens index)
+                        ]
+                    , viewStats f index character.stats
                     , button [ onClick <| f <| RemoveCharacter index ] [ text "Remove" ]
                     ]
 
@@ -572,7 +592,7 @@ viewGroupBody f group =
             ]
         ]
     , viewMisery f group
-    , viewCharacters f group.newCharacter group.characters
+    , viewCharacters f group.game group.newCharacter group.characters
     , viewInventory f group.newItem group.inventory
     , div []
         [ h3 [] [ text "Notes" ]
