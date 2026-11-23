@@ -446,6 +446,16 @@ button:focus-visible {
   border-color: var(--sb-accent-alt);
 }
 
+.character-currency {
+  margin-top: 10px;
+}
+
+.character-currency>label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .active-group-header {
   margin-bottom: 14px;
   padding-bottom: 10px;

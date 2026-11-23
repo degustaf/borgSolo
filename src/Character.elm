@@ -149,6 +149,7 @@ type alias Character =
     , class : String
     , hp : Int
     , maxHp : Int
+    , currency : Int
     , omens : Int
     , stats : CharacterStats
     , inventory : List String
@@ -162,6 +163,7 @@ type CharacterEdit
     = SetClass String
     | SetHp Int
     | SetMaxHp String
+    | SetCurrency String
     | SetOmens Int
     | SetMbStat MbStatField Int
     | SetCbStat CbStatField Int
@@ -198,6 +200,7 @@ newCharacter game name =
     , class = "Classless"
     , hp = 1
     , maxHp = 1
+    , currency = 0
     , omens = 0
     , stats = defaultStats game
     , inventory = []
@@ -273,6 +276,9 @@ applyEdit edit c =
                 | maxHp = newMax
                 , hp = clamp 0 newMax c.hp
             }
+
+        SetCurrency s ->
+            { c | currency = max 0 (Maybe.withDefault 0 (String.toInt s)) }
 
         SetOmens omens ->
             { c | omens = omens }
@@ -442,6 +448,7 @@ viewCharacter :
     { onToggle : msg
     , onRemove : msg
     , onEdit : CharacterEdit -> msg
+    , currencyLabel : String
     , omenLabel : String
     , character : Character
     }
@@ -462,6 +469,18 @@ viewCharacter config =
                         [ input [ type_ "text", value character.class, onInput (config.onEdit << SetClass) ] []
                         , viewOmenSelect config.omenLabel character.omens (config.onEdit << SetOmens)
                         , viewHpField character.hp character.maxHp (config.onEdit << SetHp) (config.onEdit << SetMaxHp)
+                        ]
+                    , div [ class "character-currency" ]
+                        [ label [ title config.currencyLabel ]
+                            [ span [ class "stat-label" ] [ text config.currencyLabel ]
+                            , input
+                                [ type_ "number"
+                                , Html.Attributes.min "0"
+                                , value (String.fromInt character.currency)
+                                , onInput (config.onEdit << SetCurrency)
+                                ]
+                                []
+                            ]
                         ]
                     , viewStats config.onEdit character.stats
                     , viewInventory config.onEdit character

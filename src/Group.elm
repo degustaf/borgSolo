@@ -14,7 +14,6 @@ type alias Group =
     { id : Int
     , game : Game
     , name : String
-    , currency : Int
     , characters : List Character
     , inventory : List String
     , notes : String
@@ -26,7 +25,6 @@ type alias Group =
 
 type GroupEdit
     = SetName String
-    | SetCurrency String
     | SetNotes String
     | RemoveItem Int
     | AdjustMisery Int
@@ -56,7 +54,6 @@ newGroup id game =
     { id = id
     , game = game
     , name = "Party " ++ String.fromInt id
-    , currency = 0
     , characters = []
     , inventory = []
     , notes = ""
@@ -91,9 +88,6 @@ applyEdit edit group =
     case edit of
         SetName name ->
             { group | name = name }
-
-        SetCurrency s ->
-            { group | currency = max 0 (Maybe.withDefault 0 (String.toInt s)) }
 
         SetNotes notes ->
             { group | notes = notes }
@@ -170,6 +164,7 @@ viewCharacterRow f game index character =
         { onToggle = f (ToggleCharacter index)
         , onRemove = f (RemoveCharacter index)
         , onEdit = \charEdit -> f (EditCharacter index charEdit)
+        , currencyLabel = currencyName game
         , omenLabel = omenName game
         , character = character
         }
@@ -213,17 +208,6 @@ viewGroupBody f group =
         [ label []
             [ text "Party name "
             , input [ type_ "text", value group.name, onInput (f << SetName) ] []
-            ]
-        ]
-    , div []
-        [ label []
-            [ text <| currencyName group.game
-            , input
-                [ type_ "number"
-                , value (String.fromInt group.currency)
-                , onInput (f << SetCurrency)
-                ]
-                []
             ]
         ]
     , viewMisery f group
