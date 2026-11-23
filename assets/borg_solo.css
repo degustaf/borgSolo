@@ -388,24 +388,6 @@ button:focus-visible {
   font-weight: 700;
 }
 
-.hp-max-input {
-  width: 56px;
-  padding: 4px 6px;
-  background-color: var(--sb-surface);
-  color: var(--sb-text);
-  border: 1px solid var(--sb-border);
-  border-radius: var(--sb-radius);
-  font-family: inherit;
-  font-size: 0.85rem;
-  font-weight: 700;
-  text-align: right;
-}
-
-.hp-max-input:focus {
-  outline: 2px solid var(--sb-accent-alt);
-  outline-offset: 1px;
-  border-color: var(--sb-accent-alt);
-}
 
 .character-stats {
   display: flex;
@@ -466,6 +448,13 @@ textarea {
   padding: 8px 10px;
   font-family: inherit;
   font-size: 0.9rem;
+}
+
+input[type="number"].hp-max-input {
+  width: 0px;
+  min-width: 64px;
+  padding: 4px 6px 4px 8px;
+  background-color: var(--sb-surface);
 }
 
 input[type="text"]:focus,
