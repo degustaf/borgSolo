@@ -528,7 +528,47 @@ footer p {
   color: #ffffff;
 }
 
+/* This your damn fault, Tom. I hate you. */
+ul,
+ol {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+li {
+  margin: 0;
+  padding: 0;
+}
+
+details {
+  margin: 0;
+  padding: 0;
+}
+
 summary {
+  display: flex;
+  /* or display: block */
+  align-items: center;
+  list-style: none;
+  /* Hides standard ::marker in Chrome/Firefox */
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
   width: fit-content;
-  margin-left: 1rem;
+}
+
+summary::-webkit-details-marker {
+  display: none;
+}
+
+summary::before {
+  content: "▶";
+  font-size: 0.75em;
+  margin-right: 0.5rem;
+  transition: transform 0.15s ease;
+}
+
+details[open]>summary::before {
+  transform: rotate(90deg);
 }
