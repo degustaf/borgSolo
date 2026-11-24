@@ -531,9 +531,9 @@ footer p {
 /* This your damn fault, Tom. I hate you. */
 ul,
 ol {
-  list-style: none;
   padding-left: 0;
   margin: 0;
+  margin-left: 1rem;
 }
 
 li {
@@ -541,8 +541,12 @@ li {
   padding: 0;
 }
 
+ol>li::marker {
+  margin-right: 0.5rem;
+}
+
 details {
-  margin: 0;
+  margin: 0 0 0 0.5rem;
   padding: 0;
 }
 
