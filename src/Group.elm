@@ -1,12 +1,14 @@
 -- Copyright (c) 2026 Derek Gustafson.
 
 
-module Group exposing (Group, GroupEdit, applyEdit, displayName, findGroup, newGroup, updateGroup, viewGroupBody)
+module Group exposing (Group, GroupEdit, applyEdit, displayName, encodeGroup, findGroup, groupDecoder, newGroup, updateGroup, viewGroupBody)
 
-import Character exposing (Character, CharacterEdit, Game, counterName, newCharacter, toggleOpen, viewCharacter)
+import Character exposing (Character, CharacterEdit, Game, characterDecoder, counterName, encodeCharacter, encodeGame, gameDecoder, newCharacter, toggleOpen, viewCharacter)
 import Html exposing (Html, button, div, h3, input, label, li, ol, text, textarea, ul)
 import Html.Attributes exposing (disabled, type_, value)
 import Html.Events exposing (onClick, onInput)
+import Json.Decode as Decode
+import Json.Encode as Encode
 import List.Extra exposing (removeAt, updateAt)
 
 
@@ -21,6 +23,39 @@ type alias Group =
     , newItem : String
     , newCharacter : String
     }
+
+
+encodeGroup : Group -> Encode.Value
+encodeGroup g =
+    Encode.object
+        [ ( "id", Encode.int g.id )
+        , ( "game", encodeGame g.game )
+        , ( "name", Encode.string g.name )
+        , ( "characters", Encode.list encodeCharacter g.characters )
+        , ( "inventory", Encode.list Encode.string g.inventory )
+        , ( "notes", Encode.string g.notes )
+        , ( "misery", Encode.int g.misery )
+        , ( "newItem", Encode.string g.newItem )
+        , ( "newCharacter", Encode.string g.newCharacter )
+        ]
+
+
+groupDecoder : Decode.Decoder Group
+groupDecoder =
+    let
+        andMap argFunc func =
+            Decode.map2 (<|) func argFunc
+    in
+    Decode.succeed Group
+        |> andMap (Decode.field "id" Decode.int)
+        |> andMap (Decode.field "game" gameDecoder)
+        |> andMap (Decode.field "name" Decode.string)
+        |> andMap (Decode.field "characters" (Decode.list characterDecoder))
+        |> andMap (Decode.field "inventory" (Decode.list Decode.string))
+        |> andMap (Decode.field "notes" Decode.string)
+        |> andMap (Decode.field "misery" Decode.int)
+        |> andMap (Decode.field "newItem" Decode.string)
+        |> andMap (Decode.field "newCharacter" Decode.string)
 
 
 type GroupEdit

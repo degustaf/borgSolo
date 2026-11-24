@@ -5,10 +5,13 @@ module Main exposing (main)
 
 import Browser
 import Character exposing (Game, feedName, gameName, newGameButtons, themeClass)
-import Group exposing (Group, GroupEdit, applyEdit, displayName, findGroup, newGroup, updateGroup, viewGroupBody)
+import Group exposing (Group, GroupEdit, applyEdit, displayName, encodeGroup, findGroup, groupDecoder, newGroup, updateGroup, viewGroupBody)
 import Html exposing (Html, aside, button, div, footer, h1, h2, header, label, li, main_, p, section, span, text, ul)
 import Html.Attributes exposing (class, value)
 import Html.Events exposing (onClick)
+import Json.Decode as Decode
+import Json.Encode as Encode
+import Ports exposing (log, saveState)
 
 
 type Screen
@@ -158,17 +161,36 @@ view model =
         ]
 
 
+persistModel : Model -> Cmd Msg
+persistModel model =
+    saveState
+        (Encode.object
+            [ ( "groups", Encode.list encodeGroup model.groups )
+            , ( "nextId", Encode.int model.nextId )
+            ]
+        )
+
+
+savedStateDecoder : Decode.Decoder ( List Group, Int )
+savedStateDecoder =
+    Decode.map2 Tuple.pair
+        (Decode.field "groups" (Decode.list groupDecoder))
+        (Decode.field "nextId" Decode.int)
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         NewGroup game ->
-            ( { model
-                | groups = model.groups ++ [ newGroup model.nextId game ]
-                , nextId = model.nextId + 1
-                , screen = ViewGroup model.nextId
-              }
-            , Cmd.none
-            )
+            let
+                nextModel =
+                    { model
+                        | groups = model.groups ++ [ newGroup model.nextId game ]
+                        , nextId = model.nextId + 1
+                        , screen = ViewGroup model.nextId
+                    }
+            in
+            ( nextModel, persistModel nextModel )
 
         OpenGroup id ->
             ( { model | screen = ViewGroup id }, Cmd.none )
@@ -186,13 +208,14 @@ update msg model =
 
                         ChooseGroup ->
                             ChooseGroup
+
+                nextModel =
+                    { model
+                        | groups = List.filter (\g -> g.id /= id) model.groups
+                        , screen = nextScreen
+                    }
             in
-            ( { model
-                | groups = List.filter (\g -> g.id /= id) model.groups
-                , screen = nextScreen
-              }
-            , Cmd.none
-            )
+            ( nextModel, persistModel nextModel )
 
         BackToStart ->
             ( { model | screen = ChooseGroup }, Cmd.none )
@@ -200,25 +223,57 @@ update msg model =
         Edit edit ->
             case model.screen of
                 ViewGroup id ->
-                    ( { model | groups = updateGroup id (applyEdit edit) model.groups }
-                    , Cmd.none
-                    )
+                    let
+                        nextModel =
+                            { model | groups = updateGroup id (applyEdit edit) model.groups }
+                    in
+                    ( nextModel, persistModel nextModel )
 
                 ChooseGroup ->
                     ( model, Cmd.none )
 
 
-init : () -> ( Model, Cmd Msg )
-init _ =
-    ( { groups = []
-      , nextId = 1
-      , screen = ChooseGroup
-      }
-    , Cmd.none
-    )
+init : Decode.Value -> ( Model, Cmd Msg )
+init flags =
+    let
+        loaded =
+            Decode.decodeValue
+                (Decode.oneOf
+                    [ savedStateDecoder
+                    , Decode.field "savedState" savedStateDecoder
+                    , Decode.string
+                        |> Decode.andThen
+                            (\raw ->
+                                case Decode.decodeString savedStateDecoder raw of
+                                    Ok parsed ->
+                                        Decode.succeed parsed
+
+                                    Err _ ->
+                                        Decode.fail "Invalid JSON string in localStorage"
+                            )
+                    ]
+                )
+                flags
+    in
+    case loaded of
+        Ok data ->
+            ( { groups = Tuple.first data
+              , nextId = Tuple.second data
+              , screen = ChooseGroup
+              }
+            , Cmd.none
+            )
+
+        Err e ->
+            ( { groups = []
+              , nextId = 1
+              , screen = ChooseGroup
+              }
+            , log <| Decode.errorToString e
+            )
 
 
-main : Program () Model Msg
+main : Program Decode.Value Model Msg
 main =
     Browser.element
         { init = init

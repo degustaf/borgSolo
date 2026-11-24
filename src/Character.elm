@@ -1,11 +1,13 @@
 -- Copyright (c) 2026 Derek Gustafson.
 
 
-module Character exposing (Character, CharacterEdit, Game, applyEdit, counterName, feedName, gameName, newCharacter, newGameButtons, themeClass, toggleOpen, viewCharacter)
+module Character exposing (Character, CharacterEdit, Game, applyEdit, characterDecoder, counterName, encodeCharacter, encodeGame, feedName, gameDecoder, gameName, newCharacter, newGameButtons, themeClass, toggleOpen, viewCharacter)
 
 import Html exposing (Html, button, div, h3, input, label, li, option, select, span, text, textarea, ul)
 import Html.Attributes exposing (class, selected, title, type_, value)
 import Html.Events exposing (onClick, onInput)
+import Json.Decode as Decode
+import Json.Encode as Encode
 import List.Extra exposing (removeAt)
 
 
@@ -50,6 +52,28 @@ gameName game =
 
         CyBorg ->
             "Cy_Borg"
+
+
+encodeGame : Game -> Encode.Value
+encodeGame =
+    Encode.string << gameName
+
+
+gameDecoder : Decode.Decoder Game
+gameDecoder =
+    Decode.string
+        |> Decode.andThen
+            (\s ->
+                case s of
+                    "Mork Borg" ->
+                        Decode.succeed MorkBorg
+
+                    "Cy_Borg" ->
+                        Decode.succeed CyBorg
+
+                    _ ->
+                        Decode.fail ("Unknown game: " ++ s)
+            )
 
 
 counterName : Game -> String
@@ -105,6 +129,25 @@ type alias MbStats =
     }
 
 
+encodeMbStats : MbStats -> Encode.Value
+encodeMbStats s =
+    Encode.object
+        [ ( "agility", Encode.int s.agility )
+        , ( "presence", Encode.int s.presence )
+        , ( "strength", Encode.int s.strength )
+        , ( "toughness", Encode.int s.toughness )
+        ]
+
+
+mbStatsDecoder : Decode.Decoder MbStats
+mbStatsDecoder =
+    Decode.map4 MbStats
+        (Decode.field "agility" Decode.int)
+        (Decode.field "presence" Decode.int)
+        (Decode.field "strength" Decode.int)
+        (Decode.field "toughness" Decode.int)
+
+
 type alias CbStats =
     { agility : Int
     , knowledge : Int
@@ -114,9 +157,63 @@ type alias CbStats =
     }
 
 
+encodeCbStats : CbStats -> Encode.Value
+encodeCbStats s =
+    Encode.object
+        [ ( "agility", Encode.int s.agility )
+        , ( "knowledge", Encode.int s.knowledge )
+        , ( "presence", Encode.int s.presence )
+        , ( "strength", Encode.int s.strength )
+        , ( "toughness", Encode.int s.toughness )
+        ]
+
+
+cbStatsDecoder : Decode.Decoder CbStats
+cbStatsDecoder =
+    Decode.map5 CbStats
+        (Decode.field "agility" Decode.int)
+        (Decode.field "knowledge" Decode.int)
+        (Decode.field "presence" Decode.int)
+        (Decode.field "strength" Decode.int)
+        (Decode.field "toughness" Decode.int)
+
+
 type CharacterStats
     = MbCharacterStats MbStats
     | CbCharacterStats CbStats
+
+
+encodeStats : CharacterStats -> Encode.Value
+encodeStats stats =
+    case stats of
+        MbCharacterStats mb ->
+            Encode.object
+                [ ( "type", Encode.string "mb" )
+                , ( "stats", encodeMbStats mb )
+                ]
+
+        CbCharacterStats cb ->
+            Encode.object
+                [ ( "type", Encode.string "cb" )
+                , ( "stats", encodeCbStats cb )
+                ]
+
+
+statsDecoder : Decode.Decoder CharacterStats
+statsDecoder =
+    Decode.field "type" Decode.string
+        |> Decode.andThen
+            (\t ->
+                case t of
+                    "mb" ->
+                        Decode.map MbCharacterStats (Decode.field "stats" mbStatsDecoder)
+
+                    "cb" ->
+                        Decode.map CbCharacterStats (Decode.field "stats" cbStatsDecoder)
+
+                    _ ->
+                        Decode.fail ("Unknown stats type: " ++ t)
+            )
 
 
 type MbStatField
@@ -148,6 +245,46 @@ type alias Character =
     , notes : String
     , isOpen : Bool
     }
+
+
+encodeCharacter : Character -> Encode.Value
+encodeCharacter c =
+    Encode.object
+        [ ( "game", encodeGame c.game )
+        , ( "name", Encode.string c.name )
+        , ( "class", Encode.string c.class )
+        , ( "hp", Encode.int c.hp )
+        , ( "maxHp", Encode.int c.maxHp )
+        , ( "currency", Encode.int c.currency )
+        , ( "omens", Encode.int c.omens )
+        , ( "stats", encodeStats c.stats )
+        , ( "inventory", Encode.list Encode.string c.inventory )
+        , ( "newItem", Encode.string c.newItem )
+        , ( "notes", Encode.string c.notes )
+        , ( "isOpen", Encode.bool c.isOpen )
+        ]
+
+
+andMap : Decode.Decoder a -> Decode.Decoder (a -> b) -> Decode.Decoder b
+andMap argFunc func =
+    Decode.map2 (<|) func argFunc
+
+
+characterDecoder : Decode.Decoder Character
+characterDecoder =
+    Decode.succeed Character
+        |> andMap (Decode.field "game" gameDecoder)
+        |> andMap (Decode.field "name" Decode.string)
+        |> andMap (Decode.field "class" Decode.string)
+        |> andMap (Decode.field "hp" Decode.int)
+        |> andMap (Decode.field "maxHp" Decode.int)
+        |> andMap (Decode.field "currency" Decode.int)
+        |> andMap (Decode.field "omens" Decode.int)
+        |> andMap (Decode.field "stats" statsDecoder)
+        |> andMap (Decode.field "inventory" (Decode.list Decode.string))
+        |> andMap (Decode.field "newItem" Decode.string)
+        |> andMap (Decode.field "notes" Decode.string)
+        |> andMap (Decode.field "isOpen" Decode.bool)
 
 
 type CharacterEdit
