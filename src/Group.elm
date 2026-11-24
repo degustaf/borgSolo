@@ -5,7 +5,7 @@ module Group exposing (Group, GroupEdit, applyEdit, displayName, encodeGroup, fi
 
 import Character exposing (Character, CharacterEdit, Game, characterDecoder, counterName, encodeCharacter, encodeGame, gameDecoder, newCharacter, viewCharacter)
 import Html exposing (Html, button, div, h3, input, label, li, ol, text, textarea, ul)
-import Html.Attributes exposing (disabled, type_, value)
+import Html.Attributes exposing (class, disabled, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Json.Decode as Decode
 import Json.Encode as Encode
@@ -183,6 +183,8 @@ viewMisery f group =
             , disabled (group.misery >= maxMisery)
             ]
             [ text "+" ]
+        , button [ class "danger-btn", onClick <| f <| AdjustMisery <| -1 * group.misery ]
+            [ text "Reset" ]
         ]
 
 
