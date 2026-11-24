@@ -11,7 +11,7 @@ import Html.Attributes exposing (class, value)
 import Html.Events exposing (onClick)
 import Json.Decode as Decode
 import Json.Encode as Encode
-import Ports exposing (log, saveState)
+import Ports exposing (exportState, fileLoaded, log, openFile, saveState)
 
 
 type Screen
@@ -23,6 +23,7 @@ type alias Model =
     { groups : List Group
     , nextId : Int
     , screen : Screen
+    , message : Maybe String
     }
 
 
@@ -41,6 +42,9 @@ type Msg
     | OpenGroup Int
     | DeleteGroup Int
     | BackToStart
+    | SaveToFile
+    | LoadFromFile
+    | FileLoaded String
     | Edit GroupEdit
 
 
@@ -92,6 +96,25 @@ viewCenterFeed =
         ]
 
 
+viewSaveLoad : Maybe String -> Html Msg
+viewSaveLoad message =
+    div [ class "card" ]
+        ([ h2 [] [ text "Save and load" ]
+         , div [ class "actions" ]
+            [ button [ class "btn-secondary", onClick SaveToFile ] [ text "Save to file" ]
+            , button [ class "btn-secondary", onClick LoadFromFile ] [ text "Load from file" ]
+            ]
+         ]
+            ++ (case message of
+                    Just m ->
+                        [ p [ class "card-note" ] [ text m ] ]
+
+                    Nothing ->
+                        []
+               )
+        )
+
+
 viewMetaRow : String -> String -> Html msg
 viewMetaRow label value =
     div [ class "meta-row" ]
@@ -102,9 +125,10 @@ viewMetaRow label value =
 
 viewHome : Model -> Html Msg
 viewHome model =
-    main_ [ class "shell shell--double" ]
+    main_ [ class "shell shell--triple" ]
         [ viewLeftRail model.groups
         , viewCenterFeed
+        , viewSaveLoad model.message
         ]
 
 
@@ -126,7 +150,7 @@ viewGroup group =
 
 viewFooter : Html Msg
 viewFooter =
-    footer [ class "footer" ]
+    footer []
         [ div [ class "footer-inner" ]
             [ p [ class "footer-license" ]
                 [ text "Scvmbook is an independent production by Derek Gustafson and is not affiliated with Ockult Örtmästare Games or Stockholm Kartell. It is published under the MÖRK BORG and CY_BORG Third Party Licenses." ]
@@ -161,14 +185,17 @@ view model =
         ]
 
 
+encodeModel : Model -> Encode.Value
+encodeModel model =
+    Encode.object
+        [ ( "groups", Encode.list encodeGroup model.groups )
+        , ( "nextId", Encode.int model.nextId )
+        ]
+
+
 persistModel : Model -> Cmd Msg
 persistModel model =
-    saveState
-        (Encode.object
-            [ ( "groups", Encode.list encodeGroup model.groups )
-            , ( "nextId", Encode.int model.nextId )
-            ]
-        )
+    saveState (encodeModel model)
 
 
 savedStateDecoder : Decode.Decoder ( List Group, Int )
@@ -188,12 +215,13 @@ update msg model =
                         | groups = model.groups ++ [ newGroup model.nextId game ]
                         , nextId = model.nextId + 1
                         , screen = ViewGroup model.nextId
+                        , message = Nothing
                     }
             in
             ( nextModel, persistModel nextModel )
 
         OpenGroup id ->
-            ( { model | screen = ViewGroup id }, Cmd.none )
+            ( { model | screen = ViewGroup id, message = Nothing }, Cmd.none )
 
         DeleteGroup id ->
             let
@@ -209,16 +237,50 @@ update msg model =
                         ChooseGroup ->
                             ChooseGroup
 
+                newGroups =
+                    List.filter (\g -> g.id /= id) model.groups
+
+                newNextId =
+                    List.foldl (\g m -> max g.id m) 0 newGroups + 1
+
                 nextModel =
-                    { model
-                        | groups = List.filter (\g -> g.id /= id) model.groups
-                        , screen = nextScreen
+                    { groups = newGroups
+                    , nextId = newNextId
+                    , screen = nextScreen
+                    , message = Nothing
                     }
             in
             ( nextModel, persistModel nextModel )
 
         BackToStart ->
-            ( { model | screen = ChooseGroup }, Cmd.none )
+            ( { model | screen = ChooseGroup, message = Nothing }, Cmd.none )
+
+        SaveToFile ->
+            ( { model | message = Nothing }, exportState (encodeModel model) )
+
+        LoadFromFile ->
+            ( { model | message = Nothing }, openFile () )
+
+        FileLoaded raw ->
+            case Decode.decodeString savedStateDecoder raw of
+                Ok ( groups, _ ) ->
+                    let
+                        imported =
+                            List.indexedMap (\i g -> { g | id = model.nextId + i }) groups
+
+                        count =
+                            List.length imported
+
+                        nextModel =
+                            { model
+                                | groups = model.groups ++ imported
+                                , nextId = model.nextId + count
+                            }
+                    in
+                    ( nextModel, persistModel nextModel )
+
+                Err _ ->
+                    ( { model | message = Just "I can't understand that file." }, Cmd.none )
 
         Edit edit ->
             case model.screen of
@@ -260,6 +322,7 @@ init flags =
             ( { groups = Tuple.first data
               , nextId = Tuple.second data
               , screen = ChooseGroup
+              , message = Nothing
               }
             , Cmd.none
             )
@@ -268,6 +331,7 @@ init flags =
             ( { groups = []
               , nextId = 1
               , screen = ChooseGroup
+              , message = Nothing
               }
             , log <| Decode.errorToString e
             )
@@ -279,5 +343,5 @@ main =
         { init = init
         , view = view
         , update = update
-        , subscriptions = \_ -> Sub.none
+        , subscriptions = \_ -> fileLoaded FileLoaded
         }

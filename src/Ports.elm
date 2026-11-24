@@ -10,3 +10,12 @@ port saveState : Encode.Value -> Cmd msg
 
 
 port log : String -> Cmd msg
+
+
+port exportState : Encode.Value -> Cmd msg
+
+
+port openFile : () -> Cmd msg
+
+
+port fileLoaded : (String -> msg) -> Sub msg

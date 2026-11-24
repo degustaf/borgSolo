@@ -247,7 +247,7 @@ viewGroupBody f group =
     , viewCharacters f group.newCharacter group.characters
     , viewInventory f group.newItem group.inventory
     , div []
-        [ h3 [] [ text "Pary Notes" ]
+        [ h3 [] [ text "Party Notes" ]
         , textarea [ value group.notes, onInput (f << SetNotes) ] []
         ]
     ]

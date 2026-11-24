@@ -1,0 +1,266 @@
+diff --git a/assets/borg_solo.css b/assets/borg_solo.css
+index d6b72b0..4988327 100644
+--- a/assets/borg_solo.css
++++ b/assets/borg_solo.css
+@@ -512,3 +512,13 @@ textarea:focus {
+ .footer p {
+   margin: 0;
+ }
++
++.card + .card {
++  margin-top: 16px;
++}
++
++.card-note {
++  margin: 12px 0 0;
++  color: var(--sb-text-muted);
++  font-size: 0.9rem;
++}
+diff --git a/index.html b/index.html
+index 69b04fb..90d3198 100644
+--- a/index.html
++++ b/index.html
+@@ -32,6 +32,33 @@
+       localStorage.setItem(key, JSON.stringify(val));
+     });
+     app.ports.log.subscribe(msg => console.log(msg));
++
++    app.ports.exportState.subscribe(val => {
++      const blob = new Blob([JSON.stringify(val, null, 2)], { type: "application/json" });
++      const url = URL.createObjectURL(blob);
++      const link = document.createElement("a");
++      link.href = url;
++      link.download = "scvmbook-" + new Date().toLocaleDateString("en-CA") + ".json";
++      document.body.appendChild(link);
++      link.click();
++      link.remove();
++      setTimeout(() => URL.revokeObjectURL(url), 1000);
++    });
++
++    app.ports.openFile.subscribe(() => {
++      const input = document.createElement("input");
++      input.type = "file";
++      input.accept = ".json,application/json";
++      input.addEventListener("change", () => {
++        const file = input.files[0];
++        if (file) {
++          file.text()
++            .then(text => app.ports.fileLoaded.send(text))
++            .catch(() => app.ports.fileLoaded.send(""));
++        }
++      });
++      input.click();
++    });
+   </script>
+ </body>
+ 
+diff --git a/src/Main.elm b/src/Main.elm
+index 30f858b..5e4d31c 100644
+--- a/src/Main.elm
++++ b/src/Main.elm
+@@ -11,7 +11,7 @@ import Html.Attributes exposing (class, value)
+ import Html.Events exposing (onClick)
+ import Json.Decode as Decode
+ import Json.Encode as Encode
+-import Ports exposing (log, saveState)
++import Ports exposing (exportState, fileLoaded, log, openFile, saveState)
+ 
+ 
+ type Screen
+@@ -23,6 +23,7 @@ type alias Model =
+     { groups : List Group
+     , nextId : Int
+     , screen : Screen
++    , message : Maybe String
+     }
+ 
+ 
+@@ -41,6 +42,9 @@ type Msg
+     | OpenGroup Int
+     | DeleteGroup Int
+     | BackToStart
++    | SaveToFile
++    | LoadFromFile
++    | FileLoaded String
+     | Edit GroupEdit
+ 
+ 
+@@ -82,16 +86,38 @@ viewLeftRail groups =
+         ]
+ 
+ 
+-viewCenterFeed : Html Msg
+-viewCenterFeed =
++viewCenterFeed : Maybe String -> Html Msg
++viewCenterFeed message =
+     section []
+         [ div [ class "card" ]
+             [ h2 [] [ text "New group" ]
+             , div [ class "actions" ] <| newGameButtons NewGroup
+             ]
++        , viewSaveLoad message
+         ]
+ 
+ 
++viewSaveLoad : Maybe String -> Html Msg
++viewSaveLoad message =
++    div [ class "card" ]
++        ([ h2 [] [ text "Save and load" ]
++         , div [ class "actions" ]
++            [ button [ class "btn-secondary", onClick SaveToFile ] [ text "Save to file" ]
++            , button [ class "btn-secondary", onClick LoadFromFile ] [ text "Load from file" ]
++            ]
++         , p [ class "card-note" ]
++            [ text "Save downloads all of your groups as a file. Load adds the groups from a saved file to the ones you already have." ]
++         ]
++            ++ (case message of
++                    Just m ->
++                        [ p [ class "card-note" ] [ text m ] ]
++
++                    Nothing ->
++                        []
++               )
++        )
++
++
+ viewMetaRow : String -> String -> Html msg
+ viewMetaRow label value =
+     div [ class "meta-row" ]
+@@ -104,7 +130,7 @@ viewHome : Model -> Html Msg
+ viewHome model =
+     main_ [ class "shell shell--double" ]
+         [ viewLeftRail model.groups
+-        , viewCenterFeed
++        , viewCenterFeed model.message
+         ]
+ 
+ 
+@@ -161,14 +187,17 @@ view model =
+         ]
+ 
+ 
++encodeModel : Model -> Encode.Value
++encodeModel model =
++    Encode.object
++        [ ( "groups", Encode.list encodeGroup model.groups )
++        , ( "nextId", Encode.int model.nextId )
++        ]
++
++
+ persistModel : Model -> Cmd Msg
+ persistModel model =
+-    saveState
+-        (Encode.object
+-            [ ( "groups", Encode.list encodeGroup model.groups )
+-            , ( "nextId", Encode.int model.nextId )
+-            ]
+-        )
++    saveState (encodeModel model)
+ 
+ 
+ savedStateDecoder : Decode.Decoder ( List Group, Int )
+@@ -188,12 +217,13 @@ update msg model =
+                         | groups = model.groups ++ [ newGroup model.nextId game ]
+                         , nextId = model.nextId + 1
+                         , screen = ViewGroup model.nextId
++                        , message = Nothing
+                     }
+             in
+             ( nextModel, persistModel nextModel )
+ 
+         OpenGroup id ->
+-            ( { model | screen = ViewGroup id }, Cmd.none )
++            ( { model | screen = ViewGroup id, message = Nothing }, Cmd.none )
+ 
+         DeleteGroup id ->
+             let
+@@ -213,12 +243,48 @@ update msg model =
+                     { model
+                         | groups = List.filter (\g -> g.id /= id) model.groups
+                         , screen = nextScreen
++                        , message = Nothing
+                     }
+             in
+             ( nextModel, persistModel nextModel )
+ 
+         BackToStart ->
+-            ( { model | screen = ChooseGroup }, Cmd.none )
++            ( { model | screen = ChooseGroup, message = Nothing }, Cmd.none )
++
++        SaveToFile ->
++            ( { model | message = Nothing }, exportState (encodeModel model) )
++
++        LoadFromFile ->
++            ( { model | message = Nothing }, openFile () )
++
++        FileLoaded raw ->
++            case Decode.decodeString savedStateDecoder raw of
++                Ok ( groups, _ ) ->
++                    let
++                        imported =
++                            List.indexedMap (\i g -> { g | id = model.nextId + i }) groups
++
++                        count =
++                            List.length imported
++
++                        noun =
++                            if count == 1 then
++                                "group"
++
++                            else
++                                "groups"
++
++                        nextModel =
++                            { model
++                                | groups = model.groups ++ imported
++                                , nextId = model.nextId + count
++                                , message = Just ("Added " ++ String.fromInt count ++ " " ++ noun ++ " from file.")
++                            }
++                    in
++                    ( nextModel, persistModel nextModel )
++
++                Err _ ->
++                    ( { model | message = Just "That file doesn't look like Scvmbook data." }, Cmd.none )
+ 
+         Edit edit ->
+             case model.screen of
+@@ -260,6 +326,7 @@ init flags =
+             ( { groups = Tuple.first data
+               , nextId = Tuple.second data
+               , screen = ChooseGroup
++              , message = Nothing
+               }
+             , Cmd.none
+             )
+@@ -268,6 +335,7 @@ init flags =
+             ( { groups = []
+               , nextId = 1
+               , screen = ChooseGroup
++              , message = Nothing
+               }
+             , log <| Decode.errorToString e
+             )
+@@ -279,5 +347,5 @@ main =
+         { init = init
+         , view = view
+         , update = update
+-        , subscriptions = \_ -> Sub.none
++        , subscriptions = \_ -> fileLoaded FileLoaded
+         }
+diff --git a/src/Ports.elm b/src/Ports.elm
+index 11d2e33..8bcf1fe 100644
+--- a/src/Ports.elm
++++ b/src/Ports.elm
+@@ -10,3 +10,12 @@ port saveState : Encode.Value -> Cmd msg
+ 
+ 
+ port log : String -> Cmd msg
++
++
++port exportState : Encode.Value -> Cmd msg
++
++
++port openFile : () -> Cmd msg
++
++
++port fileLoaded : (String -> msg) -> Sub msg

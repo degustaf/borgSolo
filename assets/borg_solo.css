@@ -209,9 +209,11 @@ h3 {
 
 @media (min-width: 900px) {
   .shell--double {
-    grid-template-columns: 280px minmax(0, 1fr);
-    gap: 24px;
-    padding: 24px 20px 48px;
+    grid-template-columns: 270px minmax(0, 1fr);
+  }
+
+  .shell--triple {
+    grid-template-columns: 270px minmax(0, 1fr) 280px;
   }
 }
 
@@ -493,8 +495,9 @@ textarea:focus {
   border-color: var(--sb-accent-alt);
 }
 
-.footer {
-  margin-top: auto;
+footer {
+  max-width: 1280px;
+  margin: auto;
   border-top: 1px solid var(--sb-border);
   background-color: var(--sb-surface);
   color: var(--sb-text-muted);
@@ -509,6 +512,18 @@ textarea:focus {
   flex-direction: column;
 }
 
-.footer p {
+footer p {
   margin: 0;
+}
+
+.card+.card {
+  margin-top: 16px;
+}
+
+.card-note {
+  margin: 12px 0 0;
+  color: var(--sb-text-muted);
+  font-size: 0.9rem;
+  background-color: #991b1b;
+  color: #ffffff;
 }

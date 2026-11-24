@@ -32,6 +32,33 @@
       localStorage.setItem(key, JSON.stringify(val));
     });
     app.ports.log.subscribe(msg => console.log(msg));
+
+    app.ports.exportState.subscribe(val => {
+      const blob = new Blob([JSON.stringify(val, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "scvmbook.json";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+
+    app.ports.openFile.subscribe(() => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = ".json,application/json";
+      input.addEventListener("change", () => {
+        const file = input.files[0];
+        if (file) {
+          file.text()
+            .then(text => app.ports.fileLoaded.send(text))
+            .catch(() => app.ports.fileLoaded.send(""));
+        }
+      });
+      input.click();
+    });
   </script>
 </body>
 
