@@ -1,11 +1,11 @@
 -- Copyright (c) 2026 Derek Gustafson.
 
 
-module Character exposing (Character, CharacterEdit, Game, applyEdit, characterDecoder, counterName, encodeCharacter, encodeGame, feedName, gameDecoder, gameName, newCharacter, newGameButtons, themeClass, toggleOpen, viewCharacter)
+module Character exposing (Character, CharacterEdit, Game, applyEdit, characterDecoder, counterName, encodeCharacter, encodeGame, feedName, gameDecoder, gameName, newCharacter, newGameButtons, themeClass, viewCharacter)
 
-import Html exposing (Html, button, div, h3, input, label, li, option, select, span, text, textarea, ul)
+import Html exposing (Html, button, details, div, h3, input, label, li, option, select, span, summary, text, textarea, ul)
 import Html.Attributes exposing (class, selected, title, type_, value)
-import Html.Events exposing (onClick, onInput)
+import Html.Events exposing (on, onClick, onInput)
 import Json.Decode as Decode
 import Json.Encode as Encode
 import List.Extra exposing (removeAt)
@@ -243,7 +243,6 @@ type alias Character =
     , inventory : List String
     , newItem : String
     , notes : String
-    , isOpen : Bool
     }
 
 
@@ -261,7 +260,6 @@ encodeCharacter c =
         , ( "inventory", Encode.list Encode.string c.inventory )
         , ( "newItem", Encode.string c.newItem )
         , ( "notes", Encode.string c.notes )
-        , ( "isOpen", Encode.bool c.isOpen )
         ]
 
 
@@ -284,7 +282,6 @@ characterDecoder =
         |> andMap (Decode.field "inventory" (Decode.list Decode.string))
         |> andMap (Decode.field "newItem" Decode.string)
         |> andMap (Decode.field "notes" Decode.string)
-        |> andMap (Decode.field "isOpen" Decode.bool)
 
 
 type CharacterEdit
@@ -335,13 +332,7 @@ newCharacter game name =
     , inventory = []
     , newItem = ""
     , notes = ""
-    , isOpen = False
     }
-
-
-toggleOpen : Character -> Character
-toggleOpen c =
-    { c | isOpen = not c.isOpen }
 
 
 setMbStatRecord : MbStatField -> Int -> MbStats -> MbStats
@@ -597,8 +588,7 @@ viewInventory f character =
 
 
 viewCharacter :
-    { onToggle : msg
-    , onRemove : msg
+    { onRemove : msg
     , onEdit : CharacterEdit -> msg
     , character : Character
     }
@@ -609,39 +599,33 @@ viewCharacter config =
             config.character
     in
     li []
-        (button
-            [ class "btn-secondary"
-            , onClick config.onToggle
-            ]
-            [ text character.name ]
-            :: (if character.isOpen then
-                    [ div [ class "character-stats" ]
-                        [ input [ type_ "text", value character.class, onInput (config.onEdit << SetClass) ] []
-                        , viewOmenSelect (omenName config.character.game) character.omens (config.onEdit << SetOmens)
-                        , viewHpField character.hp character.maxHp (config.onEdit << SetHp) (config.onEdit << SetMaxHp)
+        [ details
+            []
+            [ summary []
+                [ text character.name ]
+            , div [ class "character-stats" ]
+                [ input [ type_ "text", value character.class, onInput (config.onEdit << SetClass) ] []
+                , viewOmenSelect (omenName config.character.game) character.omens (config.onEdit << SetOmens)
+                , viewHpField character.hp character.maxHp (config.onEdit << SetHp) (config.onEdit << SetMaxHp)
+                ]
+            , div [ class "character-currency" ]
+                [ label [ title <| currencyName config.character.game ]
+                    [ span [ class "stat-label" ] [ text <| currencyName config.character.game ]
+                    , input
+                        [ type_ "number"
+                        , Html.Attributes.min "0"
+                        , value (String.fromInt character.currency)
+                        , onInput (config.onEdit << SetCurrency)
                         ]
-                    , div [ class "character-currency" ]
-                        [ label [ title <| currencyName config.character.game ]
-                            [ span [ class "stat-label" ] [ text <| currencyName config.character.game ]
-                            , input
-                                [ type_ "number"
-                                , Html.Attributes.min "0"
-                                , value (String.fromInt character.currency)
-                                , onInput (config.onEdit << SetCurrency)
-                                ]
-                                []
-                            ]
-                        ]
-                    , viewStats config.onEdit character.stats
-                    , viewInventory config.onEdit character
-                    , div [ class "character-notes" ]
-                        [ h3 [] [ text "Notes" ]
-                        , textarea [ value character.notes, onInput (config.onEdit << SetNotes) ] []
-                        ]
-                    , button [ class "character-remove", onClick config.onRemove ] [ text "Remove" ]
+                        []
                     ]
-
-                else
-                    []
-               )
-        )
+                ]
+            , viewStats config.onEdit character.stats
+            , viewInventory config.onEdit character
+            , div [ class "character-notes" ]
+                [ h3 [] [ text "Notes" ]
+                , textarea [ value character.notes, onInput (config.onEdit << SetNotes) ] []
+                ]
+            , button [ class "character-remove", onClick config.onRemove ] [ text "Remove" ]
+            ]
+        ]

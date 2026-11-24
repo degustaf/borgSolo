@@ -3,7 +3,7 @@
 
 module Group exposing (Group, GroupEdit, applyEdit, displayName, encodeGroup, findGroup, groupDecoder, newGroup, updateGroup, viewGroupBody)
 
-import Character exposing (Character, CharacterEdit, Game, characterDecoder, counterName, encodeCharacter, encodeGame, gameDecoder, newCharacter, toggleOpen, viewCharacter)
+import Character exposing (Character, CharacterEdit, Game, characterDecoder, counterName, encodeCharacter, encodeGame, gameDecoder, newCharacter, viewCharacter)
 import Html exposing (Html, button, div, h3, input, label, li, ol, text, textarea, ul)
 import Html.Attributes exposing (disabled, type_, value)
 import Html.Events exposing (onClick, onInput)
@@ -63,7 +63,6 @@ type GroupEdit
     | SetNotes String
     | RemoveItem Int
     | AdjustMisery Int
-    | ToggleCharacter Int
     | RemoveCharacter Int
     | EditCharacter Int CharacterEdit
     | SetNewItem String
@@ -133,12 +132,6 @@ applyEdit edit group =
         AdjustMisery delta ->
             { group | misery = clamp 0 maxMisery (group.misery + delta) }
 
-        ToggleCharacter index ->
-            { group
-                | characters =
-                    updateAt index toggleOpen group.characters
-            }
-
         RemoveCharacter index ->
             { group | characters = removeAt index group.characters }
 
@@ -196,8 +189,7 @@ viewMisery f group =
 viewCharacterRow : (GroupEdit -> msg) -> Int -> Character -> Html msg
 viewCharacterRow f index character =
     viewCharacter
-        { onToggle = f (ToggleCharacter index)
-        , onRemove = f (RemoveCharacter index)
+        { onRemove = f (RemoveCharacter index)
         , onEdit = \charEdit -> f (EditCharacter index charEdit)
         , character = character
         }

@@ -527,3 +527,8 @@ footer p {
   background-color: #991b1b;
   color: #ffffff;
 }
+
+summary {
+  width: fit-content;
+  margin-left: 1rem;
+}
