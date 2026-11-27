@@ -116,6 +116,30 @@ body {
   --sb-font-body: "CallingCode";
 }
 
+.theme-pb {
+  --sb-accent: #dd0000;
+  --sb-accent-hover: #ff0000;
+  --sb-accent-soft: #990000;
+  --sb-accent-alt: #dd0000;
+  --sb-ink-on-accent: #ffffff;
+  --sb-bg: #050505;
+  --sb-surface: #121214;
+  --sb-surface-elevated: #1a1a1d;
+  --sb-border: #3a3518;
+  --sb-topbar-border: #ea0808;
+  --sb-text: #f4f4f5;
+  --sb-text-muted: #a1a1aa;
+  --sb-radius: 4px;
+  --sb-shadow: none;
+  --sb-heading-transform: none;
+  --sb-heading-tracking: 0.02em;
+  --sb-heading-shadow: none;
+  --sb-grid-bg: none;
+  --sb-grid-size: auto;
+  --sb-font-header: "CallingCode";
+  --sb-font-body: "IM Fell English";
+}
+
 .app {
   min-height: 100vh;
   background-color: var(--sb-bg);

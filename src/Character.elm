@@ -14,6 +14,7 @@ import List.Extra exposing (removeAt)
 type Game
     = MorkBorg
     | CyBorg
+    | PirateBorg
 
 
 themeClass : Maybe Game -> String
@@ -30,6 +31,9 @@ themeClass g =
                 CyBorg ->
                     "theme-cb"
 
+                PirateBorg ->
+                    "theme-pb"
+
 
 newGameButtons : (Game -> msg) -> List (Html msg)
 newGameButtons f =
@@ -41,6 +45,11 @@ newGameButtons f =
         , onClick (f CyBorg)
         ]
         [ text "New Cy_Borg group" ]
+    , button
+        [ class "btn-secondary"
+        , onClick (f PirateBorg)
+        ]
+        [ text "New Pirate Borg group" ]
     ]
 
 
@@ -52,6 +61,9 @@ gameName game =
 
         CyBorg ->
             "Cy_Borg"
+
+        PirateBorg ->
+            "Pirate Borg"
 
 
 encodeGame : Game -> Encode.Value
@@ -71,6 +83,9 @@ gameDecoder =
                     "Cy_Borg" ->
                         Decode.succeed CyBorg
 
+                    "Pirate Borg" ->
+                        Decode.succeed PirateBorg
+
                     _ ->
                         Decode.fail ("Unknown game: " ++ s)
             )
@@ -85,6 +100,9 @@ counterName game =
         CyBorg ->
             "Miserable Headlines"
 
+        PirateBorg ->
+            "Chapters"
+
 
 currencyName : Game -> String
 currencyName game =
@@ -95,6 +113,9 @@ currencyName game =
         CyBorg ->
             "¤"
 
+        PirateBorg ->
+            "Silver"
+
 
 omenName : Game -> String
 omenName game =
@@ -104,6 +125,9 @@ omenName game =
 
         CyBorg ->
             "Glitches"
+
+        PirateBorg ->
+            "Devil's Luck"
 
 
 feedName : Maybe Game -> String
@@ -119,6 +143,9 @@ feedName mg =
 
                 CyBorg ->
                     "Netrunner Wall"
+
+                PirateBorg ->
+                    "Brine Watch"
 
 
 type alias MbStats =
@@ -146,6 +173,36 @@ mbStatsDecoder =
         (Decode.field "presence" Decode.int)
         (Decode.field "strength" Decode.int)
         (Decode.field "toughness" Decode.int)
+
+
+type alias PbStats =
+    { agility : Int
+    , presence : Int
+    , strength : Int
+    , toughness : Int
+    , spirit : Int
+    }
+
+
+encodePbStats : PbStats -> Encode.Value
+encodePbStats s =
+    Encode.object
+        [ ( "agility", Encode.int s.agility )
+        , ( "presence", Encode.int s.presence )
+        , ( "strength", Encode.int s.strength )
+        , ( "toughness", Encode.int s.toughness )
+        , ( "spirirt", Encode.int s.spirit )
+        ]
+
+
+pbStatsDecoder : Decode.Decoder PbStats
+pbStatsDecoder =
+    Decode.map5 PbStats
+        (Decode.field "agility" Decode.int)
+        (Decode.field "presence" Decode.int)
+        (Decode.field "strength" Decode.int)
+        (Decode.field "toughness" Decode.int)
+        (Decode.field "spirit" Decode.int)
 
 
 type alias CbStats =
@@ -181,6 +238,7 @@ cbStatsDecoder =
 type CharacterStats
     = MbCharacterStats MbStats
     | CbCharacterStats CbStats
+    | PbCharacterStats PbStats
 
 
 encodeStats : CharacterStats -> Encode.Value
@@ -196,6 +254,12 @@ encodeStats stats =
             Encode.object
                 [ ( "type", Encode.string "cb" )
                 , ( "stats", encodeCbStats cb )
+                ]
+
+        PbCharacterStats pb ->
+            Encode.object
+                [ ( "type", Encode.string "pb" )
+                , ( "stats", encodePbStats pb )
                 ]
 
 
@@ -316,6 +380,15 @@ defaultStats game =
                 , presence = 0
                 , strength = 0
                 , toughness = 0
+                }
+
+        PirateBorg ->
+            PbCharacterStats
+                { agility = 0
+                , presence = 0
+                , strength = 0
+                , toughness = 0
+                , spirit = 0
                 }
 
 
@@ -513,6 +586,14 @@ viewStats f stats =
                 , viewStatSelect "Presence" cb.presence (f << SetCbStat CbPresence)
                 , viewStatSelect "Strength" cb.strength (f << SetCbStat CbStrength)
                 , viewStatSelect "Toughness" cb.toughness (f << SetCbStat CbToughness)
+                ]
+
+            PbCharacterStats pb ->
+                [ viewStatSelect "Agility" pb.agility (f << SetCbStat CbAgility)
+                , viewStatSelect "Presence" pb.presence (f << SetCbStat CbPresence)
+                , viewStatSelect "Strength" pb.strength (f << SetCbStat CbStrength)
+                , viewStatSelect "Toughness" pb.toughness (f << SetCbStat CbToughness)
+                , viewStatSelect "Spirit" pb.spirit (f << SetCbStat CbKnowledge)
                 ]
         )
 
