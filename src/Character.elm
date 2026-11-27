@@ -392,6 +392,16 @@ defaultStats game =
                 }
 
 
+minStat : Int
+minStat =
+    -3
+
+
+maxStat : Int
+maxStat =
+    6
+
+
 newCharacter : Game -> String -> Character
 newCharacter game name =
     { game = game
@@ -412,7 +422,7 @@ setMbStatRecord : MbStatField -> Int -> MbStats -> MbStats
 setMbStatRecord field val s =
     let
         clamped =
-            clamp -3 3 val
+            clamp minStat maxStat val
     in
     case field of
         MbAgility ->
@@ -432,7 +442,7 @@ setCbStatRecord : CbStatField -> Int -> CbStats -> CbStats
 setCbStatRecord field val s =
     let
         clamped =
-            clamp -3 3 val
+            clamp minStat maxStat val
     in
     case field of
         CbAgility ->
@@ -565,7 +575,7 @@ viewStatSelect statLabel currentVal toMsg =
                         |> toMsg
                 )
             ]
-            (statOptions -3 6 currentVal)
+            (statOptions minStat maxStat currentVal)
         ]
 
 
